@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import List
 from pydantic import BaseModel, Field, model_validator
+from typing import TypedDict, List
 
 class TargetRole(str, Enum):
     AI_ML_ENGINEER = "AI_ML_Engineer"                 # Covers Applied AI, LLMs, RAG, and MLOps/Infra
@@ -43,3 +44,24 @@ class JDAnalysis(BaseModel):
         if not self.is_related:
             self.sub_focus = []
         return self
+
+
+class LoadedDocument(TypedDict):
+    title: str
+    path: str
+    content: str
+
+class graph(TypedDict):
+    raw_jd: str # (input job description)
+    jd_analysis: JDAnalysis # (from your Pydantic schema)
+    knowledge_base_path: str
+    exemplars_path: str
+    full_knowledge: str
+    matched_examples: str
+    # selection_blueprint: dict # (or a Pydantic model for Node 3A)
+    # latex_code: str # (raw output from Node 3B)
+    # audit_result: dict # (from Node 4)
+    # retry_count: int # (tracks Node 4 loops, starting at 0)
+    # compression_retries: int # (tracks Node 5 PDF overflow loops, starting at 0)
+    # pdf_path: str
+    # documents: List[LoadedDocument]

@@ -1,26 +1,21 @@
-
-from graph import graph, JDAnalysis
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate
-from prompts import JOB_ANALYSIS_PROMPT
-
-
-base_llm = ChatGoogleGenerativeAI(model="gemini-3.5-flash", temperature=0)
-
-
-job_analysis_prompt = ChatPromptTemplate.from_messages([
-    ("system", JOB_ANALYSIS_PROMPT),
-    ("human", "{job_description}")
-])
-
-job_analysis_agent = job_analysis_prompt | base_llm.with_structured_output(JDAnalysis)
+def route_after_jd_analysis(state) -> str:
+    analysis = state["jd_analysis"]
+    
+    # 1. If the job is unrelated, discard it
+    if not analysis.is_related:
+        return "stop"
+        
+    # 2. If seniority is strictly greater than internship, stop here
+    # (i.e., if it's junior or mid, halt the graph)
+    if analysis.seniority_level != SeniorityLevel.INTERNSHIP:
+        return "stop"
+        
+    # 3. Otherwise, continue to the next node (e.g., knowledge base / CV tailoring)
+    return "continue"
 
 
-def node_1_analyze_jd(state: graph):
-    # jd_analysis_llm = llm.with_structured_output(JDAnalysis)
-    result = job_analysis_agent.invoke({"job_description": state["raw_jd"]})
 
-    return {
-        "jd_analysis": result
-    }
-
+initial_state = {
+    "knowledge_base_path": "/home/izourne/obsidient_notes/ALL/CV",
+    "exemplars_path": "/home/izourne/obsidient_notes/ALL/CV/Example_CVs"
+}
