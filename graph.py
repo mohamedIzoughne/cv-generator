@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import List
 from pydantic import BaseModel, Field, model_validator
-from typing import TypedDict, List
+from typing import TypedDict, List, Dict
 
 class TargetRole(str, Enum):
     AI_ML_ENGINEER = "AI_ML_Engineer"                 # Covers Applied AI, LLMs, RAG, and MLOps/Infra
@@ -51,6 +51,26 @@ class LoadedDocument(TypedDict):
     path: str
     content: str
 
+class XYZPlan(BaseModel):
+    accomplishment: str = Field(description="[X] Core engineering action or built feature delivered.")
+    measurement: str = Field(description="[Y] Grounded metric from KB (e.g., '4.87 MAE') OR strict operational scope/constraints if no numeric metric exists (e.g., 'real-time asynchronous throughput').")
+    mechanism: str = Field(description="[Z] Architectural mechanism, protocol, design pattern, or tech stack used.")
+
+class SelectedEntryBlueprint(BaseModel):
+    entry_id: str = Field(description="Exact identifier or title matching the entry in the Obsidian KB.")
+    bullet_allocation: int = Field(ge=1, le=4, description="Number of bullets allocated (3-4 for primary, 1-2 for secondary).")
+    xyz_plans: List[XYZPlan] = Field(description="Structured breakdown of each bullet's narrative blueprint matching the XYZ formula.")
+
+class SelectionBlueprint(BaseModel):
+    section_order: List[str] = Field(description="Ordered list of sections e.g., ['Education', 'Experience', 'Projects', 'Technical Skills']")
+    skill_rows: Dict[str, List[str]] = Field(description="Categorized technical skill rows ordered to mirror JD priority buckets")
+    selected_entries: List[SelectedEntryBlueprint] = Field(description="The curated 'Best 4-5' entries with their allocated bullet blueprints.")
+
+# class CVGenerationResult(BaseModel):
+#     latex_source_code: str = Field(description="The complete, raw, compilable LaTeX source code string adhering strictly to single-column article rules.")
+#     estimated_word_count: int = Field(ge=380, le=440, description="Estimated total word count of the generated body text to ensure it fits the 1-page budget.")
+
+
 class graph(TypedDict):
     raw_jd: str # (input job description)
     jd_analysis: JDAnalysis # (from your Pydantic schema)
@@ -58,8 +78,9 @@ class graph(TypedDict):
     exemplars_path: str
     full_knowledge: str
     matched_examples: str
-    # selection_blueprint: dict # (or a Pydantic model for Node 3A)
-    # latex_code: str # (raw output from Node 3B)
+    matched_examples_latex: str
+    selection_blueprint: dict # (or a Pydantic model for Node 3A)
+    latex_code: str # (raw output from Node 3B)
     # audit_result: dict # (from Node 4)
     # retry_count: int # (tracks Node 4 loops, starting at 0)
     # compression_retries: int # (tracks Node 5 PDF overflow loops, starting at 0)

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Literal
 
 
 def join_files(documents):
@@ -49,7 +49,7 @@ def get_knowledge_base_data(base_dir):
     return full_knowledge_joined
 
 
-def get_example_cvs(base_dir: str | Path, roles: List[str]) -> List[Dict[str, Any]]:
+def get_example_cvs(base_dir: str | Path, roles: List[str], format: Literal["tex", "md"]) -> List[Dict[str, Any]]:
     base_dir = Path(base_dir).resolve()
     loaded_docs: List[Dict[str, Any]] = []
     
@@ -57,7 +57,7 @@ def get_example_cvs(base_dir: str | Path, roles: List[str]) -> List[Dict[str, An
         return loaded_docs
     
     # Change to *.md or *.tex depending on your file extension
-    for file_path in base_dir.rglob("*.tex"):
+    for file_path in base_dir.rglob(f"*.{format}"):
         if file_path.is_file():
             rel_parts = file_path.relative_to(base_dir).parts
             parent_dirs = rel_parts[:-1]
