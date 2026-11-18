@@ -66,9 +66,8 @@ class SelectionBlueprint(BaseModel):
     skill_rows: Dict[str, List[str]] = Field(description="Categorized technical skill rows ordered to mirror JD priority buckets")
     selected_entries: List[SelectedEntryBlueprint] = Field(description="The curated 'Best 4-5' entries with their allocated bullet blueprints.")
 
-# class CVGenerationResult(BaseModel):
-#     latex_source_code: str = Field(description="The complete, raw, compilable LaTeX source code string adhering strictly to single-column article rules.")
-#     estimated_word_count: int = Field(ge=380, le=440, description="Estimated total word count of the generated body text to ensure it fits the 1-page budget.")
+class CVGenerationResult(BaseModel):
+    latex_source_code: str = Field(description="The complete, raw, compilable LaTeX source code string adhering strictly to single-column article rules.")
 
 
 class graph(TypedDict):

@@ -1,8 +1,8 @@
 
-from graph import graph, JDAnalysis, SelectionBlueprint
+from graph import graph, JDAnalysis, SelectionBlueprint, CVGenerationResult
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
-from prompts import JOB_ANALYSIS_PROMPT, STRATEGY_AGENT_PROMPT
+from prompts import JOB_ANALYSIS_PROMPT, STRATEGY_AGENT_PROMPT, WRITER_AGENT_PROMPT
 from pathlib import Path
 from utilities import get_knowledge_base_data, get_example_cvs
 
@@ -67,4 +67,43 @@ def node_3a_strategy_architect(state: dict):
 
     return {
         "selection_blueprint": result
+    }
+
+writer_prompt = ChatPromptTemplate.from_messages([
+    ("system", WRITER_AGENT_PROMPT),
+    ("human", """
+    Job Analysis:
+    {jd_analysis}
+
+    Selection Blueprint (from Node 3A):
+    {selection_blueprint}
+
+    Factual Knowledge Base (Ground Truth):
+    {full_knowledge}
+
+    Style Exemplars (Structure & Tone Reference ONLY):
+    {matched_examples}
+
+    Revision Instructions (If retrying from Critic/Compiler):
+    {revision_instructions}
+    """)
+])
+
+writer_agent = writer_prompt | base_llm.with_structured_output(CVGenerationResult)
+
+def node_3b_copywriting_agent(state: dict):
+    """Translates the selection blueprint into compilable, ATS-compliant LaTeX."""
+
+    revision_instructions = state.get("revision_instructions", "Initial generation pass. Follow all constraints strictly.")
+
+    result = writer_agent.invoke({
+        "jd_analysis": state["jd_analysis"].model_dump_json(),
+        "selection_blueprint": state["selection_blueprint"].model_dump_json(),
+        "full_knowledge": state["full_knowledge"],
+        "matched_examples": state["matched_examples_latex"],
+        "revision_instructions": revision_instructions
+    })
+
+    return {
+        "latex_code": result.latex_source_code,
     }
