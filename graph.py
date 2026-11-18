@@ -81,7 +81,7 @@ class graph(TypedDict):
     selection_blueprint: dict # (or a Pydantic model for Node 3A)
     latex_code: str # (raw output from Node 3B)
     # audit_result: dict # (from Node 4)
-    # retry_count: int # (tracks Node 4 loops, starting at 0)
+    retry_count: int # (tracks Node 4 loops, starting at 0)
     # compression_retries: int # (tracks Node 5 PDF overflow loops, starting at 0)
     # pdf_path: str
     # documents: List[LoadedDocument]

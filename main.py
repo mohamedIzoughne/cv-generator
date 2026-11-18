@@ -17,5 +17,6 @@ def route_after_jd_analysis(state) -> str:
 
 initial_state = {
     "knowledge_base_path": "/home/izourne/obsidient_notes/ALL/CV",
-    "exemplars_path": "/home/izourne/obsidient_notes/ALL/CV/Example_CVs"
+    "exemplars_path": "/home/izourne/obsidient_notes/ALL/CV/Example_CVs",
+    "retry_count": 0
 }

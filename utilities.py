@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import List, Dict, Any, Literal
-
+import os
+from datetime import datetime
 
 def join_files(documents):
     context_blocks = []
@@ -93,3 +94,23 @@ def get_example_cvs(base_dir: str | Path, roles: List[str], format: Literal["tex
     full_examples_joined = join_files(loaded_docs)
 
     return full_examples_joined
+
+
+def run_python_prechecks(latex_code: str, must_have_skills: list[str]) -> list[str]:
+    """Runs fast, deterministic Python checks and returns concise violation tokens."""
+    violations = []
+    latex_lower = latex_code.lower()
+    
+    for skill in must_have_skills:
+        if skill.lower() not in latex_lower:
+            violations.append(f"Missing skill: {skill}")
+            
+    banned_environments = [r"\begin{tabular}", r"\begin{multicols}", r"\begin{table}", r"\begin{minipage}"]
+    for env in banned_environments:
+        if env in latex_code:
+            violations.append(f"Banned env: {env}")
+            
+            
+    return violations
+
+

@@ -2,9 +2,10 @@
 from graph import graph, JDAnalysis, SelectionBlueprint, CVGenerationResult
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
-from prompts import JOB_ANALYSIS_PROMPT, STRATEGY_AGENT_PROMPT, WRITER_AGENT_PROMPT
+from prompts import JOB_ANALYSIS_PROMPT, STRATEGY_AGENT_PROMPT, WRITER_AGENT_PROMPT, CRITIC_PROMPT
 from pathlib import Path
-from utilities import get_knowledge_base_data, get_example_cvs
+from utilities import get_knowledge_base_data, get_example_cvs, run_python_prechecks
+from datetime import datetime
 
 base_llm = ChatGoogleGenerativeAI(model="gemini-3.5-flash", temperature=0)
 
@@ -107,3 +108,59 @@ def node_3b_copywriting_agent(state: dict):
     return {
         "latex_code": result.latex_source_code,
     }
+
+
+critic_prompt = ChatPromptTemplate.from_messages([
+    ("system", CRITIC_PROMPT),
+    ("human", """
+        Generated LaTeX Code to Audit:
+        {latex_code}
+
+        Factual Knowledge Base (Ground Truth):
+        {full_knowledge}
+
+        Deterministic Python Pre-Check Violations Already Found:
+        {python_precheck_violations}
+        """)
+    ])
+
+
+critic_agent = critic_prompt | base_llm.with_structured_output()
+
+def node_4_critic_and_fact_checker(state: dict):
+    latex_code = state["latex_code"]
+    must_have_skills = state["jd_analysis"].must_have_skills
+
+    python_violations = run_python_prechecks(latex_code, must_have_skills)
+    
+    audit_result = critic_agent.invoke({
+        "latex_code": latex_code,
+        "full_knowledge": state["full_knowledge"],
+        "python_precheck_violations": python_violations
+    })
+    
+
+    all_violations = list(set(python_violations + audit_result.rule_violations))
+    passed = len(all_violations) == 0 and len(audit_result.hallucinated_claims) == 0
+
+    if not passed:
+        revision_instructions = (
+            f"Please fix the following audit failures:\n"
+            f"- Structural & Rule Violations: {all_violations}\n"
+            f"- Factual Hallucinations: {audit_result.hallucinated_claims}\n"
+            f"Revise the LaTeX source code strictly correcting these points while keeping the 1-page word budget."
+        )
+    else:
+        revision_instructions = "Passed all checks."
+
+    return {
+        "audit_result": {
+            "passed": passed,
+            "hallucinated_claims": audit_result.hallucinated_claims,
+            "rule_violations": all_violations,
+            "revision_instructions": revision_instructions
+        },
+        "retry_count": state["retry_count"] + (0 if passed else 1)
+    }
+
+
