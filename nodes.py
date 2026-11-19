@@ -4,8 +4,11 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from prompts import JOB_ANALYSIS_PROMPT, STRATEGY_AGENT_PROMPT, WRITER_AGENT_PROMPT, CRITIC_PROMPT
 from pathlib import Path
-from utilities import get_knowledge_base_data, get_example_cvs, run_python_prechecks
-from datetime import datetime
+from utilities import get_knowledge_base_data, get_example_cvs, run_python_prechecks, get_unique_filename, get_pdf_page_count_from_log
+import subprocess
+import os
+from pypdf import PdfReader
+
 
 base_llm = ChatGoogleGenerativeAI(model="gemini-3.5-flash", temperature=0)
 
@@ -164,3 +167,103 @@ def node_4_critic_and_fact_checker(state: dict):
     }
 
 
+
+def node_5_compile_and_verify(state: dict):
+    os.makedirs("output", exist_ok=True)
+    
+    filename = get_unique_filename(state)
+    tex_path = os.path.join("output", filename)
+    pdf_path = tex_path.rsplit(".", 1)[0] + ".pdf"
+
+    latex_code = state["latex_code"]
+    
+    with open(tex_path, "w", encoding="utf-8") as f:
+        f.write(latex_code)
+
+    try:
+        for _ in range(2):
+            subprocess.run(
+                [
+                    "pdflatex", 
+                    "-interaction=nonstopmode", 
+                    "-output-directory=output", 
+                    tex_path
+                ],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
+        reader = PdfReader(pdf_path)
+        page_count = len(reader.pages)
+
+        if page_count > 1:
+            current_retries = state.get("compression_retries", 0)
+            
+            if current_retries == 0:
+                revision_instruction = (
+                    "The compiled PDF overflowed to 2 pages. Apply the Anti-Smoothing Constraint: "
+                    "drop the lowest-relevance secondary bullet or tighten phrasing by ~15% "
+                    "without losing verified metrics."
+                )
+                return {
+                    "page_count": page_count,
+                    "compression_retries": current_retries + 1,
+                    "revision_instruction": revision_instruction,
+                    "compiler_retry_count": 0 # Reset compiler retry on successful compile phase
+                }
+            else:
+                geometry_override = (
+                    r"\usepackage[top=1.1cm, bottom=1.1cm, left=1.4cm, right=1.4cm]{geometry}"
+                    r"\setlength{\parskip}{0.15em}"
+                    r"\setlength{\itemsep}{0em}"
+                )
+                if r"\begin{document}" in latex_code:
+                    latex_code = latex_code.replace(
+                        r"\begin{document}", 
+                        f"{geometry_override}\n\\begin{{document}}"
+                    )
+                
+                with open(tex_path, "w", encoding="utf-8") as f:
+                    f.write(latex_code)
+                    
+                subprocess.run(
+                    ["pdflatex", "-interaction=nonstopmode", "-output-directory=output", tex_path],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+                
+                reader = PdfReader(pdf_path)
+                page_count = len(reader.pages)
+
+        print(f"Success! Final PDF generated at: {pdf_path} (Pages: {page_count})")
+        return {
+            "page_count": page_count,
+            "pdf_path": pdf_path,
+            "latex_code": latex_code,
+            "compiler_retry_count": 0
+        }
+
+    except subprocess.CalledProcessError as e:
+        compiler_retries = state.get("compiler_retry_count", 0) + 1
+        print(f"LaTeX compilation failed (Attempt {compiler_retries}).")
+
+        if compiler_retries > 2:
+            print("Max compilation retries reached. Stopping execution.")
+            return {
+                "compiler_retry_count": compiler_retries,
+                "compiler_error": e.stderr,
+                "revision_instruction": "Compilation failed repeatedly. Terminating execution."
+            }
+
+        return {
+            "compiler_retry_count": compiler_retries,
+            "compiler_error": e.stderr,
+            "revision_instruction": (
+                f"LaTeX compilation crashed with the following error:\n{e.stderr}\n"
+                "Fix the syntax errors in the LaTeX code while keeping the formatting intact."
+            )
+        }

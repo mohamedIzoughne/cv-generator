@@ -38,6 +38,8 @@ class JDAnalysis(BaseModel):
     )
     seniority_level: SeniorityLevel
 
+    company: str = Field("Name of company if exists, or Unknown")
+
     @model_validator(mode="after")
     def enforce_role_consistency(self) -> "JDAnalysis":
         self.is_related = self.target_role != TargetRole.UNRELATED
@@ -69,6 +71,23 @@ class SelectionBlueprint(BaseModel):
 class CVGenerationResult(BaseModel):
     latex_source_code: str = Field(description="The complete, raw, compilable LaTeX source code string adhering strictly to single-column article rules.")
 
+class CriticAuditResult(BaseModel):
+    """Structured output returned by the LaTeX resume critic and fact-checker."""
+
+    hallucinated_claims: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Specific claims, metrics, employers, degrees, skills, or tools in the "
+            "LaTeX resume that are unsupported by or contradict full_knowledge."
+        ),
+    )
+    rule_violations: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Formatting, length/word-budget, missing must-have skill, or structural "
+            "rule violations not already caught by python_precheck_violations."
+        ),
+    )
 
 class graph(TypedDict):
     raw_jd: str # (input job description)
@@ -78,10 +97,10 @@ class graph(TypedDict):
     full_knowledge: str
     matched_examples: str
     matched_examples_latex: str
-    selection_blueprint: dict # (or a Pydantic model for Node 3A)
+    selection_blueprint: SelectionBlueprint # (or a Pydantic model for Node 3A)
     latex_code: str # (raw output from Node 3B)
-    # audit_result: dict # (from Node 4)
+    audit_result: dict # (from Node 4)
     retry_count: int # (tracks Node 4 loops, starting at 0)
-    # compression_retries: int # (tracks Node 5 PDF overflow loops, starting at 0)
-    # pdf_path: str
+    compression_retries: int # (tracks Node 5 PDF overflow loops, starting at 0)
+    pdf_path: str
     # documents: List[LoadedDocument]

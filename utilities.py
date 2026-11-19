@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Literal
 import os
 from datetime import datetime
+import re
 
 def join_files(documents):
     context_blocks = []
@@ -114,3 +115,35 @@ def run_python_prechecks(latex_code: str, must_have_skills: list[str]) -> list[s
     return violations
 
 
+def get_unique_filename(state):
+    """
+    Generates a filename in the format: YYYY-MM-DD-role.tex
+    If it exists, we increment the counter.
+    """
+    role, company = state["role"], state["jd_analysis"]["company"]
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    
+    base_name = f"{today_str}-{company}-{role}"
+    filename = f"{base_name}.tex"
+    
+    counter = 1
+    while os.path.exists(filename):
+        filename = f"{base_name}0-{counter}.tex"
+        counter += 1
+        
+    return filename
+
+# def get_pdf_page_count_from_log(tex_filename):
+#     log_filename = tex_filename.rsplit(".", 1)[0] + ".log"
+    
+#     try:
+#         with open(log_filename, "r", encoding="utf-8", errors="ignore") as f:
+#             log_content = f.read()
+            
+#         match = re.search(r"Output written on .*? \((\d+)\s+page", log_content)
+#         if match:
+#             return int(match.group(1))
+#     except FileNotFoundError:
+#         print(f"Log file {log_filename} not found.")
+        
+#     return None
